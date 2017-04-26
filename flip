@@ -1,0 +1,124 @@
+#!/usr/bin/env perl
+
+=head1 NAME
+
+flip -- flip the command arguments
+
+=head1 SYNOPSIS
+
+B<flip> [ options ] COMMAND [ ARGUMENTS ... ]
+
+=head1 DESCRIPTION
+
+B<flip> swaps the first two command arguments and executes the
+resulting command. The original use-case was reverting the effects of
+B<mv(1)>.
+
+The arguments swapped are the two left-most arguments that are not
+options i.e. do not start with a hyphen. The prefix commands like
+B<sudo> are taken into consideration, so C<sudo mv foo bar> is handled
+properly (C<sudo mv bar foo>).
+
+=head1 OPTIONS
+
+=over 4
+
+=item C<--dry-run>, C<-n>
+
+Only print the flipped command, do not execute anything.
+
+=item C<--quiet>, C<-q>
+
+Do not print the flipped command before the execution.
+
+=back
+
+=head1 USAGE
+
+    $ touch foo
+    $ ls
+    foo
+    $ mv foo bar
+    $ ls
+    bar
+    $ flip mv foo bar    # or "flip !!"
+    mv bar foo
+    $ ls
+    foo
+
+=head1 AUTHOR
+
+Wojciech 'vifon' Siewierski < wojciech dot siewierski at onet dot pl >
+
+=head1 COPYRIGHT
+
+Copyright (C) 2017  Wojciech Siewierski
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+=cut
+
+use warnings;
+use strict;
+use 5.024;
+no warnings qw(experimental::smartmatch);
+
+use Getopt::Long;
+Getopt::Long::Configure(qw(
+    bundling
+    no_ignore_case
+    no_auto_abbrev
+    no_permute
+));
+
+my $dry_run = 0;
+my $quiet   = 0;
+GetOptions(
+    'dry-run|n+' => \$dry_run,
+    'quiet|q+'   => \$quiet,
+) or exit 1;
+
+
+sub is_option { shift =~ /^-/ }
+
+sub find_non_option_argument {
+    my (%args) = @_;
+    my $index = $args{start};
+    my @array = @{$args{array}};
+
+    do {
+        ++$index;
+        die "Error: Too few arguments" if $index > $#array;
+    } while is_option($array[$index]);
+    return $index;
+}
+
+my @prefix_commands = qw(sudo);
+
+my $cmd_start = 0;
+$cmd_start += 1 while $ARGV[$cmd_start] ~~ @prefix_commands;
+
+my $first = find_non_option_argument(
+    start => $cmd_start,
+    array => \@ARGV,
+);
+my $second = find_non_option_argument(
+    start => $first,
+    array => \@ARGV,
+);
+
+($ARGV[$first], $ARGV[$second]) = ($ARGV[$second], $ARGV[$first]);
+
+say "@ARGV" unless $quiet;
+exec { $ARGV[0] } @ARGV unless $dry_run;
