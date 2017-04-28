@@ -107,7 +107,7 @@ sub find_non_option_argument {
 my @prefix_commands = qw(sudo);
 
 my $cmd_start = 0;
-$cmd_start += 1 while $ARGV[$cmd_start] ~~ @prefix_commands;
+$cmd_start += 1 while grep { $_ eq $ARGV[$cmd_start] } @prefix_commands;
 
 my $first = find_non_option_argument(
     start => $cmd_start,
