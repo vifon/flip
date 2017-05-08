@@ -10,14 +10,12 @@ B<flip> [ options ] COMMAND [ ARGUMENTS ... ]
 
 =head1 DESCRIPTION
 
-B<flip> swaps the first two command arguments and executes the
+B<flip> swaps the last two command arguments and executes the
 resulting command. The original use-case was reverting the effects of
 B<mv(1)>.
 
-The arguments swapped are the two left-most arguments that are not
-options i.e. do not start with a hyphen. The prefix commands like
-B<sudo> are taken into consideration, so C<sudo mv foo bar> is handled
-properly (C<sudo mv bar foo>).
+The arguments swapped are the two right-most arguments that are not
+options i.e. do not start with a hyphen.
 
 =head1 OPTIONS
 
@@ -92,29 +90,26 @@ GetOptions(
 
 sub is_option { shift =~ /^-/ }
 
-sub find_non_option_argument {
+sub find_last_non_option_argument {
     my (%args) = @_;
     my $index = $args{start};
     my @array = @{$args{array}};
 
-    do {
-        ++$index;
-        die "Error: Too few arguments" if $index > $#array;
-    } while is_option($array[$index]);
+    while (is_option($array[$index])) {
+        --$index;
+        die "Error: Too few arguments" if $index < 1;
+    }
     return $index;
 }
 
-my @prefix_commands = qw(sudo);
+my $cmd_start = $#ARGV;
 
-my $cmd_start = 0;
-$cmd_start += 1 while grep { $_ eq $ARGV[$cmd_start] } @prefix_commands;
-
-my $first = find_non_option_argument(
+my $first = find_last_non_option_argument(
     start => $cmd_start,
     array => \@ARGV,
 );
-my $second = find_non_option_argument(
-    start => $first,
+my $second = find_last_non_option_argument(
+    start => $first - 1,
     array => \@ARGV,
 );
 
